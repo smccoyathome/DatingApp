@@ -1,4 +1,4 @@
-<div class="container-fluid mt-5">
+<div class="container-fluid mt-3">
   <div class="row">
     <h1 class="ml-5">{{user.knownAs}}'s Profile</h1>
   </div>
@@ -17,11 +17,11 @@
           </div>
           <div>
             <strong>LastActive:</strong>
-            <p>{{user.lastActive}}</p>
+            <p>{{user.lastActive | timeAgo }}</p>
           </div>
           <div>
             <strong>Member Since:</strong>
-            <p>{{user.created}}</p>
+            <p>{{user.created | date }}</p>
           </div>
         </div>
         <div class="card-footer">
