@@ -1,9 +1,10 @@
 /* You can add global styles to this file, and also import other style files */
 @import '../node_modules/bootstrap/dist/css/bootstrap.min.css';
-@import '../node_modules/bootswatch/dist/pulse/bootstrap.min.css';
+@import '../node_modules/bootswatch/dist/sketchy/bootstrap.min.css';
 @import '../node_modules/font-awesome/css/font-awesome.min.css';
 @import '../node_modules/alertifyjs/build/css/alertify.min.css';
 @import '../node_modules/alertifyjs/build/css/themes/bootstrap.min.css';
+@import '../node_modules/ngx-bootstrap/datepicker/bs-datepicker.css';
 
 /* Global Styling for the Tabs Component */
 .tab-panel {
@@ -13,7 +14,7 @@
   }
   
   .nav-tabs > li.open, .member-tabset > .nav-tabs > li:hover {
-    border-bottom: 4px solid plum;
+    border-bottom: 4px solid lightgray;
   }
   
   .member-tabset > .nav-tabs > li.open > a, .member-tabset > .nav-tabs > li:hover > a {
@@ -31,7 +32,7 @@
   }
   
   .member-tabset > .nav-tabs > li.active {
-    border-bottom: 4px solid purple;
+    border-bottom: 4px solid darkgray;
     position: relative;
   }
   
