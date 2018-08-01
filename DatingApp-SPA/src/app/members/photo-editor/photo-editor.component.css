@@ -1,0 +1,17 @@
+img.img-thumbnail {
+    height: 145px;
+    min-width: 145px !important;
+    margin-bottom: 2px;
+}
+
+.button-main {
+    font-weight: bold;
+}
+
+.nv-file-over {
+    border: dotted 3px red;
+}
+
+input[type=file] {
+    color: transparent
+}

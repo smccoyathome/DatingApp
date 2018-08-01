@@ -7,6 +7,7 @@ import { JwtModule } from '@auth0/angular-jwt';
 // Third-Party
 import { BsDropdownModule, TabsModule } from 'ngx-bootstrap';
 import { NgxGalleryModule } from 'ngx-gallery';
+import { FileUploadModule } from '../../node_modules/ng2-file-upload';
 // Components
 import { AppComponent } from './app.component';
 import { NavComponent } from './nav/nav.component';
@@ -30,6 +31,9 @@ import { PreventUnsavedChanges } from './_guards/prevent-unsaved-changes.guard';
 import { MemberDetailResolver } from './_resolvers/member-detail.resolver';
 import { MemberListResolver } from './_resolvers/member-list.resolver';
 import { MemberEditResolver } from './_resolvers/member-edit.resolver';
+import { PhotoEditorComponent } from './members/photo-editor/photo-editor.component';
+
+
 
 export function tokenGetter() {
     return localStorage.getItem('token');
@@ -46,7 +50,8 @@ export function tokenGetter() {
       MessagesComponent,
       MemberCardComponent,
       MemberDetailComponent,
-      MemberEditComponent
+      MemberEditComponent,
+      PhotoEditorComponent
    ],
    imports: [
       BrowserModule,
@@ -56,6 +61,7 @@ export function tokenGetter() {
       TabsModule.forRoot(),
       RouterModule.forRoot(appRoutes),
       NgxGalleryModule,
+      FileUploadModule,
       JwtModule.forRoot({
           config: {
               tokenGetter: tokenGetter,
