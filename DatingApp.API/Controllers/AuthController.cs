@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -7,85 +8,110 @@ using AutoMapper;
 using DatingApp.API.Data;
 using DatingApp.API.Dtos;
 using DatingApp.API.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
 namespace DatingApp.API.Controllers
 {
+    [AllowAnonymous]
     [Route("api/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private readonly IAuthRepository _repo;
         private readonly IConfiguration _config;
         private readonly IMapper _mapper;
-        public AuthController(IAuthRepository repo,
-               IConfiguration config, 
-               IMapper mapper)
+        private readonly UserManager<User> _userManager;
+        private readonly SignInManager<User> _signInManager;
+        public AuthController(IConfiguration config,
+               IMapper mapper,
+               UserManager<User> userManager,
+               SignInManager<User> signInManager)
         {
+            _userManager = userManager;
+            _signInManager = signInManager;
             _mapper = mapper;
-            _repo = repo;
             _config = config;
         }
 
-    [HttpPost("register")]
-    public async Task<IActionResult> Register(UserForRegistration userForRegistration)
-    {
-        //request validated by DTO
-
-        userForRegistration.Username = userForRegistration.Username.ToLower();
-
-        if (await _repo.UserExists(userForRegistration.Username))
-            return BadRequest("Username already exits");
-
-        var userToCreate = _mapper.Map<User>(userForRegistration);
-
-        var createdUser = await _repo.Register(userToCreate, userForRegistration.Password);
-
-        var userToReturn = _mapper.Map<UserForDetailDto>(createdUser);
-
-        return CreatedAtRoute("GetUser", new {controller = "Users", id = createdUser.Id},
-               userToReturn);
-    }
-
-    [HttpPost("login")]
-    public async Task<IActionResult> Login(UserForLogin userForLogin)
-    {
-        var userFromRepo = await _repo.Login(userForLogin.Username, userForLogin.Password);
-
-        if (userFromRepo == null)
-            return Unauthorized();
-
-        var claims = new[]
+        [HttpPost("register")]
+        public async Task<IActionResult> Register(UserForRegistration userForRegistration)
         {
-                new Claim(ClaimTypes.NameIdentifier, userFromRepo.Id.ToString()),
-                new Claim(ClaimTypes.Name, userFromRepo.Username)
+            var userToCreate = _mapper.Map<User>(userForRegistration);
+
+            var result = await _userManager.CreateAsync(userToCreate, userForRegistration.Password);
+
+            var userToReturn = _mapper.Map<UserForDetailDto>(userToCreate);
+
+            if (result.Succeeded) 
+            {
+                return CreatedAtRoute("GetUser", 
+                new { controller = "Users", id = userToCreate.Id },
+                   userToReturn);
+            }
+
+            return BadRequest(result.Errors);
+        }
+
+        [HttpPost("login")]
+        public async Task<IActionResult> Login(UserForLogin userForLogin)
+        {
+            var user = await _userManager.FindByNameAsync(userForLogin.Username);
+
+            var result = await _signInManager
+                 .CheckPasswordSignInAsync(user, userForLogin.Password, false);
+
+            if (result.Succeeded)
+            {
+                var appUser = await _userManager.Users.Include(p => p.Photos)
+                    .FirstOrDefaultAsync(u => u.NormalizedUserName == userForLogin.Username.ToUpper());
+
+                var userToReturn = _mapper.Map<UserForListDto>(appUser);
+
+                return Ok(new
+                {
+                    token = GenerateJwtToken(appUser).Result,
+                    user = userToReturn
+                });
+            }
+
+            return Unauthorized();
+        }
+
+        private async Task<string> GenerateJwtToken(User user)
+        {
+            var claims = new List<Claim>
+           {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.UserName)
             };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8
-                 .GetBytes(_config.GetSection("AppSettings:Token").Value));
+            var roles = await _userManager.GetRolesAsync(user);
 
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
+             foreach (var role in roles) 
+             {
+                 claims.Add(new Claim(ClaimTypes.Role, role));
+             }
 
-        var tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.Now.AddDays(1),
-            SigningCredentials = creds
-        };
+            var key = new SymmetricSecurityKey(Encoding.UTF8
+                     .GetBytes(_config.GetSection("AppSettings:Token").Value));
 
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var token = tokenHandler.CreateToken(tokenDescriptor);
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
 
-        var user = _mapper.Map<UserForListDto>(userFromRepo);
-
-            return Ok(new
+            var tokenDescriptor = new SecurityTokenDescriptor
             {
-                token = tokenHandler.WriteToken(token),
-                user
-            });
+                Subject = new ClaimsIdentity(claims),
+                Expires = DateTime.Now.AddDays(1),
+                SigningCredentials = creds
+            };
 
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+
+            return tokenHandler.WriteToken(token);
+        }
     }
-}
 }

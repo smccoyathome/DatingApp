@@ -14,7 +14,6 @@ using Microsoft.Extensions.Options;
 
 namespace DatingApp.API.Controllers
 {
-    [Authorize]
     [Route("api/users/{userId}/photos")]
     [ApiController]
     public class PhotosController : ControllerBase
@@ -41,6 +40,8 @@ namespace DatingApp.API.Controllers
             _cloudinary = new Cloudinary(acc);
         }
 
+        [HttpGet("unapproved")]
+
         [HttpGet("{id}", Name = "GetPhoto")]
         public async Task<IActionResult> GetPhoto(int id)
         {
@@ -56,12 +57,13 @@ namespace DatingApp.API.Controllers
         public async Task<IActionResult> AddPhotoForUser(int userId,
         [FromForm]PhotoForCreationDto photoForCreationDto)
         {
-            if (userId != int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value))
+            var isCurrentUser = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value) == userId;
+            if (!isCurrentUser)
             {
                 return Unauthorized();
             }
 
-            var userFromRepo = await _repo.GetUser(userId);
+            var userFromRepo = await _repo.GetUser(userId, isCurrentUser);
 
             var file = photoForCreationDto.File;
 
@@ -105,11 +107,8 @@ namespace DatingApp.API.Controllers
         [HttpPost("{id}/setMain")]
         public async Task<IActionResult> SetMainPhoto(int userId, int id)
         {
-            if (userId != int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value))
-            {
-                return Unauthorized();
-            }
-            var user = await _repo.GetUser(userId);
+            var isCurrentUser = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value) == userId;
+            var user = await _repo.GetUser(userId, isCurrentUser);
             if (!user.Photos.Any(p => p.Id == id))
             {
                 return Unauthorized();
@@ -132,14 +131,29 @@ namespace DatingApp.API.Controllers
 
         }
 
+        [HttpPost("{id}/approve")]
+        public async Task<IActionResult> ApprovePhoto(int id)
+        {
+
+            var photoFromRepo = await _repo.GetPhoto(id);
+            photoFromRepo.IsApproved = true;
+
+            if (await _repo.SaveAll())
+                return NoContent();
+
+            return BadRequest("Could not set photo to main");
+
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePhoto(int userId, int id)
         {
-            if (userId != int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value))
+            var isCurrentUser = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value) == userId;
+            if (!isCurrentUser)
             {
                 return Unauthorized();
             }
-            var user = await _repo.GetUser(userId);
+            var user = await _repo.GetUser(userId, isCurrentUser);
             if (!user.Photos.Any(p => p.Id == id))
             {
                 return Unauthorized();
